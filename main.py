@@ -11,6 +11,8 @@ import m3u8
 import requests
 from bs4 import BeautifulSoup
 
+from utils import progressbar, get_mediainfo
+
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
 }
@@ -65,24 +67,47 @@ class M3U8Downloader:
         target = os.path.join(os.path.dirname(directory), str(page.no).zfill(3) + '.mp4')
 
         if os.path.exists(target):
-            progressbar(1, 1, '%s' % target)
+            progressbar(1, 1, 'merged: %s' % target)
             return
 
-        progressbar(1, 2, 'M3U8: %s' % target)
+        progressbar(1, 2, 'm3u8: %s' % target)
         playlist = self.__get_playlist(page)
-        progressbar(2, 2, 'M3U8: %s' % target)
+        progressbar(2, 2, 'm3u8: %s' % target)
+
+        # for index, seg in enumerate(playlist.segments):
+        #     self.__save_ts(directory, playlist.base_uri + seg.uri, index)
 
         with ThreadPoolExecutor(max_workers=20) as pool:
             for index, seg in enumerate(playlist.segments):
                 pool.submit(self.__save_ts, directory, playlist.base_uri + seg.uri, index)
 
+        progressbar(0, 1, 'merge: %s' % target)
         files = sorted(glob.glob(os.path.join(directory, '*.ts')))
         total = len(files)
+        base_info = get_mediainfo(files[0])
 
         for index, file in enumerate(files):
+            if self.is_same_video(file, base_info) is False:
+                print('\r' + 'adv: %s' % file)
+                # progressbar(index + 1, total, 'merge: %s' % target)
+                continue
+
             with open(file, 'rb') as fr, open(target, 'ab') as fw:
                 fw.write(fr.read())
             progressbar(index + 1, total, 'merge: %s' % target)
+
+    @staticmethod
+    def is_same_video(file: str, base_info: dict):
+        info = get_mediainfo(file)
+        if len(base_info) != len(info):
+            return False
+
+        props = ['width', 'height']
+        for prop in props:
+            if base_info[prop] != info[prop]:
+                return False
+
+        return True
 
     @staticmethod
     def __get_playlist(page):
@@ -102,10 +127,15 @@ class M3U8Downloader:
 
     @staticmethod
     def __save_ts(directory, url, index):
+        message = 'download: %s/%s.ts'
         filename = os.path.join(directory, str(index).zfill(5) + '.ts')
+        conn_timeout = 5
+        read_timeout = 10
+        timeouts = (conn_timeout, read_timeout)
+
         while True:
             try:
-                response = requests.head(url, headers=headers)
+                response = requests.head(url, headers=headers, timeout=timeouts)
                 response.raise_for_status()
 
                 filesize = int(response.headers['Content-Length'])
@@ -119,7 +149,7 @@ class M3U8Downloader:
                 start = os.path.getsize(filename) if os.path.exists(filename) else 0
 
                 if start == filesize:
-                    progressbar(start, filesize, '%s/%s.ts' % (directory, str(index).zfill(5)))
+                    progressbar(start, filesize, message % (directory, str(index).zfill(5)))
                     # print('%s - %s: %0.f' % (directory, index, (start / filesize) * 100))
                     return
 
@@ -127,18 +157,18 @@ class M3U8Downloader:
                 resume_headers = headers.copy()
                 resume_headers['Range'] = "bytes={0}-{1}".format(start, end)
 
-                response = requests.get(url, stream=True, headers=resume_headers)
+                response = requests.get(url, stream=True, headers=resume_headers, timeout=timeouts)
                 response.raise_for_status()
 
                 with open(filename, 'ab+') as f:
                     for chunk in response.iter_content(chunk_size=None):
                         f.write(chunk)
                         start = start + len(chunk)
-                        progressbar(start, filesize, '%s/%s.ts' % (directory, str(index).zfill(5)))
+                        progressbar(start, filesize, message % (directory, str(index).zfill(5)))
                 return
             except Exception as e:
-                print('\r' + 'retry %s.mp4-%s: %s' % (directory, str(index).zfill(5), e))
-                time.sleep(5)
+                print('\r' + 'retry: %s.mp4-%s: %s' % (directory, str(index).zfill(5), e))
+                time.sleep(2)
 
 
 class Downloader:
@@ -147,15 +177,9 @@ class Downloader:
         self.m3u8_downloader = m3u8_downloader
 
     def download(self, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
-        for page in self.crawler.pages(url, start, end):
+        pages = self.crawler.pages(url, start, end)
+        for page in pages:
             self.m3u8_downloader.download(page)
-
-
-def progressbar(size: int, total: int, title="Progress"):
-    print('\r' + '[%s]:[%s%s]%.2f%%' % (
-        title,
-        '█' * int(size * 20 / total), ' ' * (20 - int(size * 20 / total)),
-        float(size / total * 100)), end='')
 
 
 def main():

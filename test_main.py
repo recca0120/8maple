@@ -4,7 +4,6 @@ import os
 import re
 from unittest.mock import MagicMock
 
-import ffmpeg
 import m3u8
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
@@ -87,6 +86,7 @@ def test_m3u8_downloader(mocker: MockFixture, my_fs):
     mocker.patch('requests.head', side_effect=mocked_requests_get)
     mocker.patch('requests.get', side_effect=mocked_requests_get)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
+    mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
 
     page = Page(1, 'https://bowang.su/play/126771-4-1.html',
                 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8')
@@ -102,6 +102,7 @@ def test_downloader(mocker: MockFixture, my_fs):
     mocker.patch('requests.head', side_effect=mocked_requests_get)
     mocker.patch('requests.get', side_effect=mocked_requests_get)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
+    mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
 
     url = 'https://bowang.su/play/126771-4-1.html'
     root = 'video-test'
@@ -111,30 +112,17 @@ def test_downloader(mocker: MockFixture, my_fs):
     assert 153 == len(glob.glob(os.path.join(root, '*.mp4')))
 
 
-def get_mediainfo(filename):
-    return ffmpeg.probe(filename)["streams"][0]
-    # out = subprocess.Popen(['mediainfo', filename],
-    #                        shell=False,
-    #                        stdout=subprocess.PIPE).stdout.read()
-    # info = {}
-    # groups = re.findall(r'([^\n:]+):([^\n]*)', out.decode('utf-8'))
-    # for (key, value) in groups:
-    #     info[key.strip()] = value.strip()
-    #
-    # return info
-
-
-def test_mediainfo():
-    files = sorted(glob.glob(os.path.join('video/004/' '*.ts')))
-    print('')
-    for file in files:
-        try:
-            info = get_mediainfo(file)
-            print(info)
-            # if '080' in info['Height']:
-            #     print(info)
-        except Exception as e:
-            print(e)
+# def test_mediainfo():
+#     from utils import get_mediainfo
+#
+#     files = sorted(glob.glob(os.path.join('video/004/' '*.ts')))
+#     print('')
+#     for file in files:
+#         info = get_mediainfo(file)
+#         print(len(info))
+#         print(info)
+#         # if info['height'] == 1080:
+#         #     print(info)
 
 
 @pytest.fixture
