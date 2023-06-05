@@ -4,6 +4,8 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from typing import Union
+from urllib.parse import urlparse
 
 import m3u8
 import requests
@@ -23,16 +25,29 @@ class Page:
 
 class Crawler:
 
-    def pages(self):
-        base_url = 'https://bowang.su'
-        response = requests.get(f'{base_url}/play/126771-4-1.html', headers=headers)
+    def pages(self, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+        parsed = urlparse(url)
+        base_url = '%s://%s' % (parsed.scheme, parsed.netloc)
+
+        response = requests.get(url, headers=headers)
 
         soup = BeautifulSoup(response.text, 'html.parser')
 
         for link in soup.select(".play-tab-list.active .module-play-list-link"):
             no = int(re.search(r'[\d\\.]+', link.text).group(0))
-            url = "%s%s" % (base_url, link['href'])
-            yield Page(no, url, self.__get_m3u8(url))
+            if self.allowed(no, start, end):
+                url = "%s%s" % (base_url, link['href'])
+                yield Page(no, url, self.__get_m3u8(url))
+
+    @staticmethod
+    def allowed(no: int, start, end):
+        if start is not None and start > no:
+            return False
+
+        if end is not None and end < no:
+            return False
+
+        return True
 
     @staticmethod
     def __get_m3u8(url: str) -> str:
@@ -53,7 +68,9 @@ class M3U8Downloader:
             progressbar(1, 1, '%s' % target)
             return
 
+        progressbar(1, 2, 'M3U8: %s' % target)
         playlist = self.__get_playlist(page)
+        progressbar(2, 2, 'M3U8: %s' % target)
 
         with ThreadPoolExecutor(max_workers=20) as pool:
             for index, seg in enumerate(playlist.segments):
@@ -129,8 +146,8 @@ class Downloader:
         self.crawler = crawler
         self.m3u8_downloader = m3u8_downloader
 
-    def download(self):
-        for page in self.crawler.pages():
+    def download(self, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+        for page in self.crawler.pages(url, start, end):
             self.m3u8_downloader.download(page)
 
 
@@ -143,7 +160,7 @@ def progressbar(size: int, total: int, title="Progress"):
 
 def main():
     downloader = Downloader(Crawler(), M3U8Downloader())
-    downloader.download()
+    downloader.download('https://bowang.su/play/126771-4-1.html')
 
 
 if __name__ == '__main__':

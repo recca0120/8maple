@@ -2,9 +2,9 @@ import glob
 import io
 import os
 import re
-import subprocess
 from unittest.mock import MagicMock
 
+import ffmpeg
 import m3u8
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
@@ -68,10 +68,11 @@ d5f7e4b581e000000.ts
 
 def test_crawler(mocker: MockFixture):
     mocker.patch('requests.get', side_effect=mocked_requests_get)
+    url = 'https://bowang.su/play/126771-4-1.html'
 
     crawler = Crawler()
     pages = []
-    for page in crawler.pages():
+    for page in crawler.pages(url):
         pages.append(page)
 
     assert 153 == len(pages)
@@ -102,35 +103,38 @@ def test_downloader(mocker: MockFixture, my_fs):
     mocker.patch('requests.get', side_effect=mocked_requests_get)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
 
+    url = 'https://bowang.su/play/126771-4-1.html'
     root = 'video-test'
     downloader = Downloader(Crawler(), M3U8Downloader(root))
-    downloader.download()
+    downloader.download(url)
 
     assert 153 == len(glob.glob(os.path.join(root, '*.mp4')))
 
 
 def get_mediainfo(filename):
-    out = subprocess.Popen(['mediainfo', filename],
-                           shell=False,
-                           stdout=subprocess.PIPE).stdout.read()
-    info = {}
-    groups = re.findall(r'([^\n:]+):([^\n]*)', out.decode('utf-8'))
-    for (key, value) in groups:
-        info[key.strip()] = value.strip()
+    return ffmpeg.probe(filename)["streams"][0]
+    # out = subprocess.Popen(['mediainfo', filename],
+    #                        shell=False,
+    #                        stdout=subprocess.PIPE).stdout.read()
+    # info = {}
+    # groups = re.findall(r'([^\n:]+):([^\n]*)', out.decode('utf-8'))
+    # for (key, value) in groups:
+    #     info[key.strip()] = value.strip()
+    #
+    # return info
 
-    return info
 
-
-# def test_mediainfo():
-#     files = sorted(glob.glob(os.path.join('video/004/' '*.ts')))
-#     print('')
-#     for file in files:
-#         try:
-#             info = get_mediainfo(file)
-#             if '080' in info['Height']:
-#                 print(info)
-#         except Exception as e:
-#             print(e)
+def test_mediainfo():
+    files = sorted(glob.glob(os.path.join('video/004/' '*.ts')))
+    print('')
+    for file in files:
+        try:
+            info = get_mediainfo(file)
+            print(info)
+            # if '080' in info['Height']:
+            #     print(info)
+        except Exception as e:
+            print(e)
 
 
 @pytest.fixture
