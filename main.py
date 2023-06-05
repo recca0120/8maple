@@ -19,7 +19,8 @@ headers = {
 
 
 class Page:
-    def __init__(self, no: int, url: str, m3u8_: str):
+    def __init__(self, name, no: int, url: str, m3u8_: str):
+        self.name = name
         self.no = no
         self.url = url
         self.m3u8 = m3u8_
@@ -27,7 +28,7 @@ class Page:
 
 class Crawler:
 
-    def pages(self, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+    def pages(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
         parsed = urlparse(url)
         base_url = '%s://%s' % (parsed.scheme, parsed.netloc)
 
@@ -39,7 +40,7 @@ class Crawler:
             no = int(re.search(r'[\d\\.]+', link.text).group(0))
             if self.allowed(no, start, end):
                 url = "%s%s" % (base_url, link['href'])
-                yield Page(no, url, self.__get_m3u8(url))
+                yield Page(name, no, url, self.__get_m3u8(url))
 
     @staticmethod
     def allowed(no: int, start, end):
@@ -119,7 +120,11 @@ class M3U8Downloader:
         if os.path.exists(self.__root) is False:
             os.mkdir(self.__root)
 
-        directory = '%s/%s' % (self.__root, str(page.no).zfill(3))
+        root = os.path.join(self.__root, page.name)
+        if os.path.exists(root) is False:
+            os.mkdir(root)
+
+        directory = os.path.join(root, str(page.no).zfill(3))
         if os.path.exists(directory) is False:
             os.mkdir(directory)
 
@@ -176,15 +181,15 @@ class Downloader:
         self.crawler = crawler
         self.m3u8_downloader = m3u8_downloader
 
-    def download(self, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
-        pages = self.crawler.pages(url, start, end)
+    def download(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+        pages = self.crawler.pages(name, url, start, end)
         for page in pages:
             self.m3u8_downloader.download(page)
 
 
 def main():
     downloader = Downloader(Crawler(), M3U8Downloader())
-    downloader.download('https://bowang.su/play/126771-4-1.html')
+    downloader.download('七龍珠', 'https://bowang.su/play/126771-4-1.html')
 
 
 if __name__ == '__main__':

@@ -67,16 +67,17 @@ d5f7e4b581e000000.ts
 
 def test_crawler(mocker: MockFixture):
     mocker.patch('requests.get', side_effect=mocked_requests_get)
+
+    name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
     crawler = Crawler()
-    pages = []
-    for page in crawler.pages(url):
-        pages.append(page)
+    pages = list(crawler.pages(name, url))
 
     assert 153 == len(pages)
 
     page = pages[0]
+    assert name == page.name
     assert 1 == page.no
     assert 'https://bowang.su/play/126771-4-1.html' == page.url
     assert 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8' == page.m3u8
@@ -88,14 +89,18 @@ def test_m3u8_downloader(mocker: MockFixture, my_fs):
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
     mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
 
-    page = Page(1, 'https://bowang.su/play/126771-4-1.html',
-                'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8')
-
     root = 'video-test'
+    name = "DB"
+    no = 1
+    url = 'https://bowang.su/play/126771-4-1.html'
+    m3u8_ = 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8'
+
+    page = Page(name, no, url, m3u8_)
+
     downloader = M3U8Downloader(root)
     downloader.download(page)
 
-    assert re.search(r'000\.ts', read_file('%s/%s.mp4' % (root, str(page.no).zfill(3))).decode('utf-8'))
+    assert re.search(r'000\.ts', read_file('%s/%s/%s.mp4' % (root, page.name, str(page.no).zfill(3))).decode('utf-8'))
 
 
 def test_downloader(mocker: MockFixture, my_fs):
@@ -104,12 +109,14 @@ def test_downloader(mocker: MockFixture, my_fs):
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
     mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
 
-    url = 'https://bowang.su/play/126771-4-1.html'
     root = 'video-test'
-    downloader = Downloader(Crawler(), M3U8Downloader(root))
-    downloader.download(url)
+    name = "DB"
+    url = 'https://bowang.su/play/126771-4-1.html'
 
-    assert 153 == len(glob.glob(os.path.join(root, '*.mp4')))
+    downloader = Downloader(Crawler(), M3U8Downloader(root))
+    downloader.download(name, url)
+
+    assert 153 == len(glob.glob(os.path.join(root, name, '*.mp4')))
 
 
 # def test_mediainfo():
