@@ -21,3 +21,14 @@ def get_mediainfo(filename: str) -> dict:
     #     info[key.strip().lower()] = value.strip()
     #
     # return info
+
+
+def read_file(filename: str) -> bytes:
+    with open(filename, 'rb') as f:
+        content = f.read()
+    return content
+
+
+def save_file(filename: str, content: bytes):
+    with open(filename, 'wb') as f:
+        f.write(content)

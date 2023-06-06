@@ -9,7 +9,11 @@ from urllib.parse import urlparse
 
 import m3u8
 import requests
+from Cryptodome.Cipher import AES
+from Cryptodome.Util.Padding import unpad
 from bs4 import BeautifulSoup
+from m3u8 import Segment
+from requests import HTTPError
 
 from utils import progressbar, get_mediainfo
 
@@ -60,6 +64,8 @@ class Crawler:
 
 
 class M3U8Downloader:
+    timeouts = (5, 10)
+
     def __init__(self, root: str = None):
         self.__root = 'video' if root is None else root
 
@@ -75,12 +81,14 @@ class M3U8Downloader:
         playlist = self.__get_playlist(page)
         progressbar(2, 2, 'm3u8: %s' % target)
 
-        # for index, seg in enumerate(playlist.segments):
-        #     self.__save_ts(directory, playlist.base_uri + seg.uri, index)
+        cipher = self.__get_cipher(playlist)
+
+        # for index, segment in enumerate(playlist.segments):
+        #     self.__save_ts(directory, segment, index, cipher)
 
         with ThreadPoolExecutor(max_workers=20) as pool:
-            for index, seg in enumerate(playlist.segments):
-                pool.submit(self.__save_ts, directory, playlist.base_uri + seg.uri, index)
+            for index, segment in enumerate(playlist.segments):
+                pool.submit(self.__save_ts, directory, segment, index, cipher)
 
         progressbar(0, 1, 'merge: %s' % target)
         files = sorted(glob.glob(os.path.join(directory, '*.ts')))
@@ -88,7 +96,7 @@ class M3U8Downloader:
         base_info = get_mediainfo(files[0])
 
         for index, file in enumerate(files):
-            if self.is_same_video(file, base_info) is False:
+            if self.__is_same_video(file, base_info) is False:
                 print('\r' + 'adv: %s' % file)
                 # progressbar(index + 1, total, 'merge: %s' % target)
                 continue
@@ -97,24 +105,25 @@ class M3U8Downloader:
                 fw.write(fr.read())
             progressbar(index + 1, total, 'merge: %s' % target)
 
-    @staticmethod
-    def is_same_video(file: str, base_info: dict):
-        info = get_mediainfo(file)
-        if len(base_info) != len(info):
-            return False
+    def __get_cipher(self, playlist):
+        encryption = playlist.keys[0]
 
-        props = ['width', 'height']
-        for prop in props:
-            if base_info[prop] != info[prop]:
-                return False
+        if encryption is None:
+            return None
 
-        return True
+        return AES.new(self.__http_get(encryption.absolute_uri).content, AES.MODE_CBC, encryption.iv)
 
-    @staticmethod
-    def __get_playlist(page):
-        base = m3u8.load(page.m3u8)
+    def __get_playlist(self, page):
+        url = page.m3u8
 
-        return m3u8.load(base.base_uri + base.playlists[0].uri)
+        while True:
+            m3u8_ = m3u8.loads(self.__http_get(url).content.decode('utf-8'), url)
+
+            if len(m3u8_.segments) > 0:
+                return m3u8_
+
+            playlist = m3u8_.playlists[0]
+            url = self.__get_m3u8_url(playlist.base_uri, playlist.uri)
 
     def __get_directory(self, page):
         if os.path.exists(self.__root) is False:
@@ -130,50 +139,70 @@ class M3U8Downloader:
 
         return directory
 
-    @staticmethod
-    def __save_ts(directory, url, index):
+    def __save_ts(self, directory: str, segment: Segment, index: int, cipher=None):
+        url = segment.absolute_uri
         message = 'download: %s/%s.ts'
         filename = os.path.join(directory, str(index).zfill(5) + '.ts')
-        conn_timeout = 5
-        read_timeout = 10
-        timeouts = (conn_timeout, read_timeout)
 
         while True:
             try:
-                response = requests.head(url, headers=headers, timeout=timeouts)
-                response.raise_for_status()
+                response = self.__http_head(url)
 
                 filesize = int(response.headers['Content-Length'])
-
-                # if 'Content-disposition' in response.headers:
-                #     value, params = cgi.parse_header(response.headers['Content-disposition'])
-                #     filename = params['filename']
-                # else:
-                #     filename = url.split('/')[-1]
-
                 start = os.path.getsize(filename) if os.path.exists(filename) else 0
 
                 if start == filesize:
                     progressbar(start, filesize, message % (directory, str(index).zfill(5)))
-                    # print('%s - %s: %0.f' % (directory, index, (start / filesize) * 100))
                     return
 
-                end = int(filesize) - 1
-                resume_headers = headers.copy()
-                resume_headers['Range'] = "bytes={0}-{1}".format(start, end)
+                response = self.__http_get(url)
+                content = response.content
 
-                response = requests.get(url, stream=True, headers=resume_headers, timeout=timeouts)
-                response.raise_for_status()
-
-                with open(filename, 'ab+') as f:
-                    for chunk in response.iter_content(chunk_size=None):
-                        f.write(chunk)
-                        start = start + len(chunk)
-                        progressbar(start, filesize, message % (directory, str(index).zfill(5)))
+                with open(filename, 'wb') as f:
+                    start = len(content)
+                    content = content if cipher is None else unpad(cipher.decrypt(content), AES.block_size)
+                    f.write(content)
+                    progressbar(start, filesize, message % (directory, str(index).zfill(5)))
                 return
-            except Exception as e:
+            except HTTPError as e:
                 print('\r' + 'retry: %s.mp4-%s: %s' % (directory, str(index).zfill(5), e))
                 time.sleep(2)
+
+    def __http_get(self, url: str):
+        response = requests.get(url, headers=headers, timeout=self.timeouts)
+        response.raise_for_status()
+
+        return response
+
+    def __http_head(self, url):
+        response = requests.head(url, headers=headers, timeout=self.timeouts)
+        response.raise_for_status()
+
+        return response
+
+    @staticmethod
+    def __is_same_video(file: str, base_info: dict):
+        info = get_mediainfo(file)
+        if len(base_info) != len(info):
+            return False
+
+        props = ['width', 'height']
+        for prop in props:
+            if base_info.get(prop) != info.get(prop):
+                return False
+
+        return True
+
+    @staticmethod
+    def __get_m3u8_url(base_uri, uri):
+        segments = uri.split('/')
+        segments.reverse()
+        positions = map(lambda segment: base_uri.rfind(segment), segments)
+        positions = filter(lambda pos: pos != -1, positions)
+        for pos in positions:
+            base_uri = base_uri[0:pos]
+
+        return base_uri.rstrip('/') + '/' + uri.lstrip('/')
 
 
 class Downloader:
@@ -189,7 +218,7 @@ class Downloader:
 
 def main():
     downloader = Downloader(Crawler(), M3U8Downloader())
-    downloader.download('七龍珠', 'https://bowang.su/play/126771-4-1.html')
+    downloader.download('龍珠改', 'https://bowang.su/play/41562-5-1.html')
 
 
 if __name__ == '__main__':
