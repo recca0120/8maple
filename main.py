@@ -14,8 +14,9 @@ from Cryptodome.Util.Padding import unpad
 from bs4 import BeautifulSoup
 from m3u8 import Segment
 from requests import HTTPError
+from videoprops import get_video_properties
 
-from utils import progressbar, get_mediainfo
+from utils import progressbar
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
@@ -93,7 +94,7 @@ class M3U8Downloader:
         progressbar(0, 1, 'merge: %s' % target)
         files = sorted(glob.glob(os.path.join(directory, '*.ts')))
         total = len(files)
-        base_info = get_mediainfo(files[0])
+        base_info = get_video_properties(files[0])
 
         for index, file in enumerate(files):
             if self.__is_same_video(file, base_info) is False:
@@ -182,7 +183,7 @@ class M3U8Downloader:
 
     @staticmethod
     def __is_same_video(file: str, base_info: dict):
-        info = get_mediainfo(file)
+        info = get_video_properties(file)
         if len(base_info) != len(info):
             return False
 
@@ -218,7 +219,7 @@ class Downloader:
 
 def main():
     downloader = Downloader(Crawler(), M3U8Downloader())
-    downloader.download('龍珠改', 'https://bowang.su/play/41562-5-1.html')
+    downloader.download('龍珠GT', 'https://bowang.su/play/15450-10-1.html')
 
 
 if __name__ == '__main__':

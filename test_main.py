@@ -169,13 +169,10 @@ def test_downloader(mocker: MockFixture, my_fs):
 
 
 # def test_mediainfo():
-#     from utils import get_mediainfo
-#
 #     files = sorted(glob.glob(os.path.join('video/龍珠改/001/*.ts')))
 #     print('')
 #     for file in files:
-#         info = get_mediainfo(file)
-#         print(info.get('width'))
+#         print(get_video_properties(file)['width'])
 
 
 @pytest.fixture
