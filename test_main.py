@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import m3u8
 import pytest
+import requests
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
@@ -119,7 +120,7 @@ def test_m3u8_downloader(mocker: MockFixture, my_fs):
     mocker.patch('requests.head', side_effect=mocked_requests_get)
     mocker.patch('requests.get', side_effect=mocked_requests_get)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
-    mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
+    mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
     name = "DB"
@@ -139,7 +140,7 @@ def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, my_fs):
     mocker.patch('requests.head', side_effect=mocked_requests_get)
     mocker.patch('requests.get', side_effect=mocked_requests_get)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
-    mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
+    mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
     name = "DB"
@@ -156,7 +157,7 @@ def test_downloader(mocker: MockFixture, my_fs):
     mocker.patch('requests.head', side_effect=mocked_requests_get)
     mocker.patch('requests.get', side_effect=mocked_requests_get)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
-    mocker.patch('ffmpeg.probe', return_value={'streams': [{'height': '960', 'width': '480'}]})
+    mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
     name = "DB"
@@ -169,10 +170,53 @@ def test_downloader(mocker: MockFixture, my_fs):
 
 
 # def test_mediainfo():
-#     files = sorted(glob.glob(os.path.join('video/龍珠改/001/*.ts')))
+#     from utils import get_media_info, is_same_video
+#     target = '龍珠GT'
+#     root = sorted(glob.glob(os.path.join('video', target, '*')))
 #     print('')
-#     for file in files:
-#         print(get_video_properties(file)['width'])
+#     for directory in root:
+#         if os.path.isdir(directory):
+#             files = sorted(glob.glob(os.path.join(directory, '*.ts')))
+#             base_info = get_media_info(files[0])
+#             for file in files:
+#                 if is_same_video(file, base_info) is False:
+#                     print(file)
+def test_request():
+    # response = requests.get('https://jx.bowang.su/aliplayer/?url=http://www.iqiyi.com/v_19rroof6rc.html', headers={
+    #     # 'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Brave";v="114"',
+    #     # 'sec-ch-ua-mobile': '?0',
+    #     # 'sec-ch-ua-platform': 'macOS',
+    #     # 'Upgrade-Insecure-Requests': '1',
+    #     # 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+    #     # 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    #     # 'Sec-GPC': '1',
+    #     # 'Accept-Language': 'zh-TW,zh;q=0.8',
+    #     # 'Sec-Fetch-Site': 'same-site',
+    #     # 'Sec-Fetch-Mode': 'navigate',
+    #     # 'Sec-Fetch-Dest': 'iframe',
+    #     'Referer': 'https://bowang.su/',
+    # })
+    # content = response.content.decode('utf-8')
+    # print(content)
+    # url = re.search(r'source:\s*"([^"]+)"', content).group(1)
+    # response = requests.get(url, headers={
+    #     'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Brave";v="114"',
+    #     'sec-ch-ua-mobile': '?0',
+    #     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+    #     'sec-ch-ua-platform': '"macOS"',
+    #     'Accept': '*/*',
+    #     'Sec-GPC': '1',
+    #     'Accept-Language': 'zh-TW,zh;q=0.8',
+    #     'Origin': 'https://jx.bowang.su',
+    #     'Sec-Fetch-Site': 'cross-site',
+    #     'Sec-Fetch-Mode': 'cors',
+    #     'Sec-Fetch-Dest': 'empty',
+    #     'Accept-Encoding': 'gzip',
+    # })
+    # print(response.content.decode('utf-8'))
+    url = 'https://static1.keepcdn.com/avatar/2023/06/06/03/58/1f971a7f979e1b32ae662bf0e494423e.png'
+    print(requests.get(url).content)
+    pass
 
 
 @pytest.fixture
