@@ -2,7 +2,7 @@ import glob
 import io
 import os
 import re
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import m3u8
 import pytest
@@ -12,8 +12,27 @@ from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockFixture
 
-from main import Crawler, M3U8Downloader, Page, Downloader
+from main import M3U8Downloader, Downloader
+from crawlers import Crawler, Page
 from utils import read_file
+
+
+class MockResponse:
+    def __init__(self, content: bytes, headers: dict):
+        self._content = content
+        self.headers = headers
+
+    async def read(self):
+        return self._content
+
+    def raise_for_status(self):
+        pass
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+    async def __aenter__(self):
+        return self
 
 
 def get_fixture(url: str):
@@ -70,12 +89,26 @@ def get_fixture(url: str):
     return b''
 
 
-def mocked_requests_get(*args, **kwargs):
-    mock = MagicMock()
+def mock_response(*args, **kwargs):
+    content = get_fixture(args[0])
+    headers = {'Accept-Ranges': 'bytes', 'Content-Length': len(content)}
+
+    return MockResponse(
+        content=content,
+        headers=headers
+    )
+
+
+async def mocked_requests_get(*args, **kwargs):
+    mock = AsyncMock()
+    mock.__aenter__.return_value = mock
 
     content = get_fixture(args[0])
     mock.headers = {'Accept-Ranges': 'bytes', 'Content-Length': len(content)}
     mock.content = content
+    mock.read = MagicMock()
+    mock.read.return_value = content.decode('utf-8')
+
     try:
         mock.text = content.decode('utf-8')
     except UnicodeDecodeError:
@@ -98,14 +131,13 @@ def mocked_m3u8(*args, **kwargs):
     return mock
 
 
-def test_crawler(mocker: MockFixture):
-    mocker.patch('requests.get', side_effect=mocked_requests_get)
-
+@pytest.mark.asyncio
+async def test_crawler(mock_http):
     name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
     crawler = Crawler()
-    pages = list(crawler.pages(name, url))
+    pages = [page async for page in (crawler.pages(name, url))]
 
     assert 153 == len(pages)
 
@@ -116,10 +148,8 @@ def test_crawler(mocker: MockFixture):
     assert 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8' == page.m3u8
 
 
-def test_m3u8_downloader(mocker: MockFixture, my_fs):
-    mocker.patch('requests.head', side_effect=mocked_requests_get)
-    mocker.patch('requests.get', side_effect=mocked_requests_get)
-    mocker.patch('m3u8.load', side_effect=mocked_m3u8)
+@pytest.mark.asyncio
+async def test_m3u8_downloader(mocker: MockFixture, mock_http, my_fs):
     mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
@@ -131,15 +161,13 @@ def test_m3u8_downloader(mocker: MockFixture, my_fs):
     page = Page(name, no, url, m3u8_)
 
     downloader = M3U8Downloader(root)
-    downloader.download(page)
+    await downloader.download(page)
 
     assert re.search(r'000\.ts', read_file('%s/%s/%s.mp4' % (root, page.name, str(page.no).zfill(3))).decode('utf-8'))
 
 
-def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, my_fs):
-    mocker.patch('requests.head', side_effect=mocked_requests_get)
-    mocker.patch('requests.get', side_effect=mocked_requests_get)
-    mocker.patch('m3u8.load', side_effect=mocked_m3u8)
+@pytest.mark.asyncio
+async def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, mock_http, my_fs):
     mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
@@ -150,13 +178,11 @@ def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, my_fs):
 
     page = Page(name, no, url, m3u8_)
     downloader = M3U8Downloader(root)
-    downloader.download(page)
+    await downloader.download(page)
 
 
-def test_downloader(mocker: MockFixture, my_fs):
-    mocker.patch('requests.head', side_effect=mocked_requests_get)
-    mocker.patch('requests.get', side_effect=mocked_requests_get)
-    mocker.patch('m3u8.load', side_effect=mocked_m3u8)
+@pytest.mark.asyncio
+async def test_downloader(mocker: MockFixture, mock_http, my_fs):
     mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
@@ -164,7 +190,7 @@ def test_downloader(mocker: MockFixture, my_fs):
     url = 'https://bowang.su/play/126771-4-1.html'
 
     downloader = Downloader(Crawler(), M3U8Downloader(root))
-    downloader.download(name, url)
+    await downloader.download(name, url)
 
     assert 153 == len(glob.glob(os.path.join(root, name, '*.mp4')))
 
@@ -217,6 +243,13 @@ def test_request():
     url = 'https://static1.keepcdn.com/avatar/2023/06/06/03/58/1f971a7f979e1b32ae662bf0e494423e.png'
     print(requests.get(url).content)
     pass
+
+
+@pytest.fixture
+def mock_http(mocker: MockFixture):
+    mocker.patch('aiohttp.ClientSession.get', side_effect=mock_response)
+    mocker.patch('aiohttp.ClientSession.head', side_effect=mock_response)
+    mocker.patch('m3u8.load', side_effect=mocked_m3u8)
 
 
 @pytest.fixture

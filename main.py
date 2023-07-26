@@ -1,81 +1,22 @@
+import asyncio
 import glob
-import json
 import os
-import re
-import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from typing import Union
-from urllib.parse import urlparse
 
 import m3u8
-import requests
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
-from bs4 import BeautifulSoup
 from m3u8 import Segment
 from requests import HTTPError
 
+from client import Http
+from crawlers import Crawler, Page
 from utils import progressbar, is_same_video, get_media_info, Logger, ANSI
 
 
-class Http:
-    timeouts = (5, 10)
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
-    }
-
-    def get(self, url: str):
-        response = requests.get(url, headers=self.headers, timeout=self.timeouts)
-        response.raise_for_status()
-
-        return response
-
-    def head(self, url: str):
-        response = requests.head(url, headers=self.headers, timeout=self.timeouts)
-        response.raise_for_status()
-
-        return response
-
-
-class Page:
-    def __init__(self, name, no: int, url: str, m3u8_: str):
-        self.name = name
-        self.no = no
-        self.url = url
-        self.m3u8 = m3u8_
-
-
-class Crawler:
-    def __init__(self, http: Http = None):
-        self.__http = Http() if http is None else http
-
-    def pages(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
-        parsed = urlparse(url)
-        base_url = '%s://%s' % (parsed.scheme, parsed.netloc)
-
-        response = self.__http.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        for link in soup.select(".play-tab-list.active .module-play-list-link"):
-            no = int(re.search(r'[\d\\.]+', link.text).group(0))
-            if self.allowed(no, start, end):
-                url = "%s%s" % (base_url, link['href'])
-                yield Page(name, no, url, self.__get_m3u8(url))
-
-    @staticmethod
-    def allowed(no: int, start, end):
-        if start is not None and start > no:
-            return False
-
-        if end is not None and end < no:
-            return False
-
-        return True
-
-    def __get_m3u8(self, url: str) -> str:
-        response = self.__http.get(url)
-
-        return json.loads("{%s}" % re.search(r'\"url\":\"https:.*\.m3u8\"', response.text).group(0))['url']
+def wrapper(coro):
+    return asyncio.run(coro)
 
 
 class M3U8Downloader:
@@ -84,7 +25,7 @@ class M3U8Downloader:
         self.__http = Http() if http is None else http
         self.__logger = Logger() if logger is None else logger
 
-    def download(self, page: Page):
+    async def download(self, page: Page):
         directory = self.__get_directory(page)
         temp = os.path.join(os.path.dirname(directory), str(page.no).zfill(3) + '.tmp.mp4')
         target = os.path.join(os.path.dirname(directory), str(page.no).zfill(3) + '.mp4')
@@ -96,24 +37,23 @@ class M3U8Downloader:
         progressbar(1, 2, 'm3u8: %s' % target)
         while True:
             try:
-                playlist = self.__get_playlist(page)
+                playlist = await self.__get_playlist(page)
                 break
             except (HTTPError, Exception) as e:
                 self.__logger.warning(e)
-                time.sleep(15)
+                await asyncio.sleep(15)
         progressbar(2, 2, 'm3u8: %s' % target)
 
-        cipher = self.__get_cipher(playlist)
+        cipher = await self.__get_cipher(playlist)
         total = len(playlist.segments)
         if self.__is_files_equals(directory, total) is not True:
-            with ThreadPoolExecutor(max_workers=10) as pool:
+            with ThreadPoolExecutor(max_workers=10) as executor:
                 for index, segment in enumerate(playlist.segments):
-                    pool.submit(self.__save_ts, directory, segment, index, total, cipher)
-
+                    executor.submit(wrapper, self.__save_ts(directory, segment, index, total, cipher))
         progressbar(0, 1, 'merge: %s' % target)
+
         files = self.find_ts(directory)
         file_total = len(files)
-
         if self.__is_files_equals(directory, total) is not True:
             progressbar(
                 file_total,
@@ -125,7 +65,6 @@ class M3U8Downloader:
             return
 
         base_info = get_media_info(files[0])
-
         if os.path.exists(temp):
             os.unlink(temp)
 
@@ -145,23 +84,22 @@ class M3U8Downloader:
         except Exception as e:
             self.__logger.error('failed: %s %s' % (target, e))
 
-    def __get_cipher(self, playlist: m3u8.M3U8):
+    async def __get_cipher(self, playlist: m3u8.M3U8):
         encryption = playlist.keys[0]
 
         if encryption is None:
             return None
 
-        return AES.new(
-            self.__http.get(encryption.absolute_uri).content,
-            AES.MODE_CBC,
-            encryption.iv
-        )
+        response = await self.__http.get(encryption.absolute_uri)
 
-    def __get_playlist(self, page: Page):
+        return AES.new(response, AES.MODE_CBC, encryption.iv)
+
+    async def __get_playlist(self, page: Page):
         url = page.m3u8
 
         while True:
-            m3u8_ = m3u8.loads(self.__http.get(url).content.decode('utf-8'), url)
+            response = await self.__http.get(url)
+            m3u8_ = m3u8.loads(response.decode('utf-8'), url)
 
             if len(m3u8_.segments) > 0:
                 return m3u8_
@@ -183,7 +121,7 @@ class M3U8Downloader:
 
         return directory
 
-    def __save_ts(self, directory: str, segment: Segment, index: int, total: int, cipher: AES = None):
+    async def __save_ts(self, directory: str, segment: Segment, index: int, total: int, cipher: AES = None):
         url = segment.absolute_uri
         filename = os.path.join(directory, ('%05d.ts' % index))
 
@@ -191,8 +129,8 @@ class M3U8Downloader:
         tries = 0
         while True:
             try:
-                response = self.__http.head(url)
-                filesize = int(response.headers['Content-Length'])
+                headers = await self.__http.head(url)
+                filesize = int(headers['Content-Length'])
                 start = os.path.getsize(filename) if os.path.exists(filename) else 0
                 message = prefix % (directory, index, total)
 
@@ -200,11 +138,11 @@ class M3U8Downloader:
                     progressbar(start, filesize, message)
                     return
 
-                content = self.__http.get(url).content
+                response = await self.__http.get(url)
                 with open(filename, 'wb') as f:
-                    start = len(content)
-                    content = content if cipher is None else unpad(cipher.decrypt(content), AES.block_size)
-                    f.write(content)
+                    start = len(response)
+                    response = response if cipher is None else unpad(cipher.decrypt(response), AES.block_size)
+                    f.write(response)
                     progressbar(start, filesize, message)
                 return
             except (HTTPError, Exception) as e:
@@ -219,7 +157,7 @@ class M3U8Downloader:
                 tries = tries + 1
                 message = 'retry: %s.mp4 %05d/%05d: %s' % (directory, index, total, e)
                 self.__logger.warning(message)
-                time.sleep(10)
+                await asyncio.sleep(10)
 
     def __is_files_equals(self, directory, total):
         files = self.find_ts(directory)
@@ -254,17 +192,18 @@ class Downloader:
         self.crawler = crawler
         self.m3u8_downloader = m3u8_downloader
 
-    def download(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+    async def download(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
         pages = self.crawler.pages(name, url, start, end)
-        for page in pages:
-            self.m3u8_downloader.download(page)
+
+        async for page in pages:
+            await self.m3u8_downloader.download(page)
 
 
-def main(folder: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+async def main(folder: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
     client = Http()
     downloader = Downloader(Crawler(client), M3U8Downloader('video', client))
-    downloader.download(folder, url, start, end)
+    await downloader.download(folder, url, start, end)
 
 
 if __name__ == '__main__':
-    main('九龍珠 (1993)', 'https://bowang.su/play/103058-5-1.html')
+    asyncio.run(main('九龍珠 (1993)', 'https://bowang.su/play/103058-5-1.html'))
