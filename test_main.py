@@ -12,7 +12,8 @@ from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockFixture
 
-from main import M3U8Downloader, Downloader
+from main import Downloader
+from m3u8_downloader import M3U8Downloader
 from crawlers import Crawler, Page
 from utils import read_file
 
