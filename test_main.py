@@ -2,7 +2,7 @@ import glob
 import io
 import os
 import re
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import m3u8
 import pytest
@@ -12,9 +12,9 @@ from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockFixture
 
-from main import Downloader
-from m3u8_downloader import M3U8Downloader
 from crawlers import Crawler, Page
+from m3u8_downloader import M3U8Downloader
+from main import Downloader
 from utils import read_file
 
 
@@ -94,15 +94,11 @@ def mock_response(*args, **kwargs):
     content = get_fixture(args[0])
     headers = {'Accept-Ranges': 'bytes', 'Content-Length': len(content)}
 
-    return MockResponse(
-        content=content,
-        headers=headers
-    )
+    return MockResponse(content=content, headers=headers)
 
 
 async def mocked_requests_get(*args, **kwargs):
-    mock = AsyncMock()
-    mock.__aenter__.return_value = mock
+    mock = MagicMock()
 
     content = get_fixture(args[0])
     mock.headers = {'Accept-Ranges': 'bytes', 'Content-Length': len(content)}
