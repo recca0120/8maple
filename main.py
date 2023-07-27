@@ -11,14 +11,20 @@ class Downloader:
         self.crawler = crawler
         self.m3u8_downloader = m3u8_downloader
 
-    async def download(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+    async def download(
+            self,
+            name: str,
+            url: str,
+            start: Union[int, str, None] = None,
+            end: Union[int, str, None] = None
+    ):
         pages = self.crawler.pages(name, url, start, end)
 
         async for page in pages:
             await self.m3u8_downloader.download(page)
 
 
-async def main(folder: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+async def main(folder: str, url: str, start: Union[int, str, None] = None, end: Union[int, str, None] = None):
     client = Http()
     downloader = Downloader(Crawler(client), M3U8Downloader('video', client))
     await downloader.download(folder, url, start, end)

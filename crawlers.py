@@ -12,7 +12,7 @@ class Crawler:
     def __init__(self, http: Http = None):
         self.__http = Http() if http is None else http
 
-    async def pages(self, name: str, url: str, start: Union[int, None] = None, end: Union[int, None] = None):
+    async def pages(self, name: str, url: str, start: Union[int, str, None] = None, end: Union[int, str, None] = None):
         parsed = urlparse(url)
         base_url = '%s://%s' % (parsed.scheme, parsed.netloc)
 
@@ -20,7 +20,7 @@ class Crawler:
         soup = BeautifulSoup(response.decode('utf-8'), 'html.parser')
 
         for link in soup.select(".play-tab-list.active .module-play-list-link"):
-            no = int(re.search(r'[\d\\.]+', link.text).group(0))
+            no = re.search(r'[\w\\.]+', link.text).group(0)
             if self.allowed(no, start, end):
                 url = "%s%s" % (base_url, link['href'])
                 yield Page(name, no, url, await self.__get_m3u8(url))
@@ -42,8 +42,16 @@ class Crawler:
 
 
 class Page:
-    def __init__(self, name, no: int, url: str, m3u8_: str):
+    def __init__(self, name, no: str, url: str, m3u8_: str):
         self.name = name
-        self.no = no
+        self.no = self.parse_no(no)
         self.url = url
         self.m3u8 = m3u8_
+
+    @staticmethod
+    def parse_no(no: str) -> Union[int, str]:
+        try:
+            no = int(no)
+            return '%03d' % no
+        except ValueError:
+            return no
