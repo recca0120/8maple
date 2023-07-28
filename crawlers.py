@@ -42,11 +42,11 @@ class Crawler:
 
 
 class Page:
-    def __init__(self, name, no: str, url: str, m3u8_: str):
+    def __init__(self, name, no: str, url: str, m3u8_url: str):
         self.name = name
         self.no = self.parse_no(no)
         self.url = url
-        self.m3u8 = m3u8_
+        self.m3u8 = m3u8_url
 
     @staticmethod
     def parse_no(no: str) -> Union[int, str]:
