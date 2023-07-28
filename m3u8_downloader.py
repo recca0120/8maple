@@ -145,12 +145,12 @@ class M3U8Downloader:
 
         while True:
             response = await self.__http.get(url)
-            m3u8_ = m3u8.loads(response.decode('utf-8'), url)
+            parsed = m3u8.loads(response.decode('utf-8'), url)
 
-            if len(m3u8_.segments) > 0:
-                return m3u8_
+            if len(parsed.segments) > 0:
+                return parsed
 
-            playlist = m3u8_.playlists[0]
+            playlist = parsed.playlists[0]
             url = self.__get_m3u8_url(playlist.base_uri, playlist.uri)
 
     def __get_directory(self, page: Page):
@@ -193,3 +193,22 @@ class M3U8Downloader:
             base_uri = base_uri[0:pos]
 
         return base_uri.rstrip('/') + '/' + uri.lstrip('/')
+
+
+async def main(name: str, link: str):
+    page = Page(
+        name=name,
+        no='HD',
+        url='https://www.movieffm.net/movies/the-super-mario-bros-movie/',
+        m3u8_url=link
+    )
+
+    downloader = M3U8Downloader('video')
+    await downloader.download(page)
+
+
+if __name__ == '__main__':
+    asyncio.run(main(
+        '超級瑪利歐兄弟電影版',
+        'https://m3u.haiwaikan.com/xm3u8/a6c6f7d96df1f4e37d4a1935c5f6869be9a3c8f65e180b8efdb8e914efd2f2f09921f11e97d0da21.m3u8'
+    ))
