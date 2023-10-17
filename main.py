@@ -1,14 +1,13 @@
-import asyncio
 from typing import Union
 
 from client import Http
-from crawlers import Crawler
+from crawlers import Factory
 from m3u8_downloader import M3U8Downloader
 
 
 class Downloader:
-    def __init__(self, crawler: Crawler, m3u8_downloader: M3U8Downloader):
-        self.crawler = crawler
+    def __init__(self, factory: Factory, m3u8_downloader: M3U8Downloader):
+        self.factory = factory
         self.m3u8_downloader = m3u8_downloader
 
     async def download(
@@ -18,7 +17,8 @@ class Downloader:
             start: Union[int, str, None] = None,
             end: Union[int, str, None] = None
     ):
-        pages = self.crawler.pages(name, url, start, end)
+        crawler = self.factory.create(url)
+        pages = crawler.pages(name, url, start, end)
 
         async for page in pages:
             await self.m3u8_downloader.download(page)
@@ -26,7 +26,7 @@ class Downloader:
 
 async def main(folder: str, url: str, start: Union[int, str, None] = None, end: Union[int, str, None] = None):
     client = Http()
-    downloader = Downloader(Crawler(client), M3U8Downloader('video', client))
+    downloader = Downloader(Factory(client), M3U8Downloader('video', client))
     await downloader.download(folder, url, start, end)
 
 
@@ -48,8 +48,10 @@ if __name__ == '__main__':
     # asyncio.run(main('銀魂劇場版：新譯紅櫻篇', 'https://bowang.su/play/78405-5-1.html'))
     # asyncio.run(main('銀魂：最終篇', 'https://bowang.su/play/64374-9-1.html'))
     # asyncio.run(main('舞動青春', 'https://bowang.su/play/33280-8-1.html'))
-    asyncio.run(main('魔神英雄傳', 'https://bowang.su/play/77535-4-1.html'))
-    asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-5-1.html'))
-    asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-3-15.html', 15, 15))
-    asyncio.run(main('超魔神英雄傳', 'https://bowang.su/play/103759-2-1.html'))
-    asyncio.run(main('魔神英雄傳 七魂龍神丸', 'https://bowang.su/play/76760-11-1.html'))
+    # asyncio.run(main('魔神英雄傳', 'https://bowang.su/play/77535-4-1.html'))
+    # asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-5-1.html'))
+    # asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-3-15.html', 15, 15))
+    # asyncio.run(main('超魔神英雄傳', 'https://bowang.su/play/103759-2-1.html'))
+    # asyncio.run(main('魔神英雄傳 七魂龍神丸', 'https://bowang.su/play/76760-11-1.html'))
+    # asyncio.run(main('魔神英雄傳 七魂龍神丸-再會', 'https://bowang.su/play/128262-2-1.html'))
+    pass
