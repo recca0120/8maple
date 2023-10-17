@@ -12,7 +12,7 @@ from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockFixture
 
-from crawlers import Crawler, Page
+from crawlers import Page, Factory
 from m3u8_downloader import M3U8Downloader
 from main import Downloader
 from utils import read_file
@@ -133,7 +133,8 @@ async def test_crawler(mock_http):
     name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
-    crawler = Crawler()
+    factory = Factory()
+    crawler = factory.create(url)
     pages = [page async for page in (crawler.pages(name, url))]
 
     assert 153 == len(pages)
@@ -150,7 +151,8 @@ async def test_crawler_episode_hd(mock_http):
     name = "銀魂劇場版：新譯紅櫻篇HD"
     url = 'https://bowang.su/play/78405-5-1.html'
 
-    crawler = Crawler()
+    factory = Factory()
+    crawler = factory.create(url)
     pages = [page async for page in (crawler.pages(name, url))]
 
     assert pages[0].episode == 'HD中字'
@@ -162,16 +164,17 @@ async def test_m3u8_downloader(mocker: MockFixture, mock_http, my_fs):
 
     root = 'video-test'
     name = "DB"
-    no = 1
+    episode = 1
     url = 'https://bowang.su/play/126771-4-1.html'
     m3u8_ = 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8'
 
-    page = Page(name, no, url, m3u8_)
+    page = Page(name, episode, url, m3u8_)
 
     downloader = M3U8Downloader(root)
     await downloader.download(page)
 
-    assert re.search(r'000\.ts', read_file('%s/%s/%s.mp4' % (root, page.name, str(page.episode).zfill(3))).decode('utf-8'))
+    assert re.search(r'000\.ts',
+                     read_file('%s/%s/%s.mp4' % (root, page.name, str(page.episode).zfill(3))).decode('utf-8'))
 
 
 @pytest.mark.asyncio
@@ -180,11 +183,11 @@ async def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, mock_htt
 
     root = 'video-test'
     name = "DB"
-    no = 1
+    episode = 1
     url = 'https://bowang.su/play/126771-4-1.html'
     m3u8_ = 'https://new.yle888.vip/20221207/Gqk5BD7f/index.m3u8'
 
-    page = Page(name, no, url, m3u8_)
+    page = Page(name, episode, url, m3u8_)
     downloader = M3U8Downloader(root)
     await downloader.download(page)
 
@@ -197,7 +200,7 @@ async def test_downloader(mocker: MockFixture, mock_http, my_fs):
     name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
-    downloader = Downloader(Crawler(), M3U8Downloader(root))
+    downloader = Downloader(Factory(), M3U8Downloader(root))
     await downloader.download(name, url)
 
     assert 153 == len(glob.glob(os.path.join(root, name, '*.mp4')))

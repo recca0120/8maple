@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from client import Http
 
 
-class Crawler:
+class BowangCrawler:
     def __init__(self, http: Http = None):
         self.__http = Http() if http is None else http
 
@@ -61,3 +61,20 @@ class Page:
             return '%03d' % episode
         except ValueError:
             return episode
+
+
+class Factory(object):
+    def __init__(self, http: Http = None):
+        self.__http = Http() if http is None else http
+
+    def create(self, url: str):
+        crawlers = {'bowang': BowangCrawler}
+
+        return crawlers.get(self.parse_name(url))(self.__http)
+
+    @staticmethod
+    def parse_name(url: str):
+        # domain = urlparse(url).netloc
+        # if re.search(u'bowang', domain):
+        #     return 'bowang'
+        return 'bowang'
