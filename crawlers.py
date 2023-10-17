@@ -20,13 +20,19 @@ class Crawler:
         soup = BeautifulSoup(response.decode('utf-8'), 'html.parser')
 
         for link in soup.select(".play-tab-list.active .module-play-list-link"):
-            no = re.search(r'[\w\\.]+', link.text).group(0)
-            if self.allowed(no, start, end):
+            matched = re.search(r'[\d\\.]+', link.text)
+
+            if matched is None:
                 url = "%s%s" % (base_url, link['href'])
-                yield Page(name, no, url, await self.__get_m3u8(url))
+                yield Page(name, link.text.strip(), url, await self.__get_m3u8(url))
+            else:
+                no = float(matched.group(0))
+                if self.allowed(no, start, end):
+                    url = "%s%s" % (base_url, link['href'])
+                    yield Page(name, no, url, await self.__get_m3u8(url))
 
     @staticmethod
-    def allowed(no: int, start, end):
+    def allowed(no: Union[float, str], start, end):
         if start is not None and start > no:
             return False
 
@@ -42,14 +48,14 @@ class Crawler:
 
 
 class Page:
-    def __init__(self, name, no: str, url: str, m3u8_url: str):
+    def __init__(self, name, no: Union[float, str], url: str, m3u8_url: str):
         self.name = name
         self.no = self.parse_no(no)
         self.url = url
         self.m3u8 = m3u8_url
 
     @staticmethod
-    def parse_no(no: str) -> Union[int, str]:
+    def parse_no(no: Union[float, str]) -> Union[float, str]:
         try:
             no = int(no)
             return '%03d' % no

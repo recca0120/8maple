@@ -195,20 +195,57 @@ class M3U8Downloader:
         return base_uri.rstrip('/') + '/' + uri.lstrip('/')
 
 
-async def main(name: str, link: str):
-    page = Page(
-        name=name,
-        no='HD',
-        url='https://www.movieffm.net/movies/the-super-mario-bros-movie/',
-        m3u8_url=link
-    )
-
+async def main(page: Page):
     downloader = M3U8Downloader('video')
     await downloader.download(page)
 
 
 if __name__ == '__main__':
-    asyncio.run(main(
-        '超級瑪利歐兄弟電影版',
-        'https://m3u.haiwaikan.com/xm3u8/a6c6f7d96df1f4e37d4a1935c5f6869be9a3c8f65e180b8efdb8e914efd2f2f09921f11e97d0da21.m3u8'
-    ))
+    # asyncio.run(main(Page(
+    #     '超級瑪利歐兄弟電影版',
+    #     'HD',
+    #     'https://www.movieffm.net/movies/the-super-mario-bros-movie/',
+    #     'https://m3u.haiwaikan.com/xm3u8/a6c6f7d96df1f4e37d4a1935c5f6869be9a3c8f65e180b8efdb8e914efd2f2f09921f11e97d0da21.m3u8'
+    # )))
+    asyncio.run(main(Page(
+        '蠟筆小新：超級美味！B級美食大逃亡！',
+        'HD',
+        'https://www.movieffm.net/movies/crayon-shin-chan-very-tasty-b-class-gourmet-survival/',
+        'https://m3u.haiwaikan.com/xm3u8/b2201b3b741640f809883aeb5a39202a4fd20978a1c37b312bd76d95a4e74a9c9921f11e97d0da21.m3u8'
+    )))
+    asyncio.run(main(Page(
+        '小小兵2：格魯的崛起',
+        'HD',
+        'https://www.movieffm.net/movies/minions-the-rise-of-gru/',
+        'https://m3u.haiwaikan.com/xm3u8/9fb6165cdf6ae4de2036cb59494c2df986cc0a5b8b470a7dd2a259a9243a4c699921f11e97d0da21.m3u8'
+    )))
+    # asyncio.run(main(Page(
+    #     '名偵探柯南：萬聖節的新娘',
+    #     'HD',
+    #     'https://www.movieffm.net/movies/detective-conan-the-bride-of-halloween/',
+    #     'https://m3u.haiwaikan.com/xm3u8/33a33393dae7bac77d0103f8547b11756f2ae344bd66ab8b55ce3663262ad22f9921f11e97d0da21.m3u8'
+    # )))
+    asyncio.run(main(Page(
+        '名偵探柯南：大怪獸哥梅拉VS假面超人',
+        'HD',
+        'https://www.movieffm.net/movies/detective-conan-kaiju-gomera-vs-kamen-yaiba/',
+        'https://m3u.haiwaikan.com/xm3u8/33a33393dae7bac77d0103f8547b11756f2ae344bd66ab8b55ce3663262ad22f9921f11e97d0da21.m3u8'
+    )))
+    asyncio.run(main(Page(
+        '航海王劇場版：紅髮歌姬',
+        'HD',
+        'https://www.movieffm.net/movies/236834/',
+        'https://m3u.haiwaikan.com/xm3u8/0c9882d9f0de154092ab8b5b0ab7a91eb87d76639ec8057467ca5495bf3fb8319921f11e97d0da21.m3u8'
+    )))
+    asyncio.run(main(Page(
+        '侏羅紀世界3：統霸天下',
+        'HD',
+        'https://www.movieffm.net/movies/jurassic-world-dominion/',
+        'https://m3u.haiwaikan.com/xm3u8/c91ea86dd6e862709b72ded369ca08932c26a5bc16fe80b904137d812a2de7449921f11e97d0da21.m3u8'
+    )))
+    asyncio.run(main(Page(
+        '貓和老鼠：雪人國大冒險',
+        'HD',
+        'https://www.movieffm.net/movies/tom-and-jerry-snowmans-land/',
+        'https://m3u.haiwaikan.com/xm3u8/9ae02a45330b0b1e5d259964e26236fdd9fd521266dea1758044f0c5f5d07d4e9921f11e97d0da21.m3u8'
+    )))
