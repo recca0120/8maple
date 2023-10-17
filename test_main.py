@@ -140,9 +140,20 @@ async def test_crawler(mock_http):
 
     page = pages[0]
     assert name == page.name
-    assert 1 == page.no
+    assert '001' == page.no
     assert 'https://bowang.su/play/126771-4-1.html' == page.url
     assert 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8' == page.m3u8
+
+
+@pytest.mark.asyncio
+async def test_crawler_episode_hd(mock_http):
+    name = "銀魂劇場版：新譯紅櫻篇HD"
+    url = 'https://bowang.su/play/78405-5-1.html'
+
+    crawler = Crawler()
+    pages = [page async for page in (crawler.pages(name, url))]
+
+    assert pages[0].no == 'HD中字'
 
 
 @pytest.mark.asyncio
