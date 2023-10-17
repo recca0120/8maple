@@ -140,7 +140,7 @@ async def test_crawler(mock_http):
 
     page = pages[0]
     assert name == page.name
-    assert '001' == page.no
+    assert '001' == page.episode
     assert 'https://bowang.su/play/126771-4-1.html' == page.url
     assert 'https://vip.ffzy-online2.com/20221231/3982_a82a6172/index.m3u8' == page.m3u8
 
@@ -153,7 +153,7 @@ async def test_crawler_episode_hd(mock_http):
     crawler = Crawler()
     pages = [page async for page in (crawler.pages(name, url))]
 
-    assert pages[0].no == 'HD中字'
+    assert pages[0].episode == 'HD中字'
 
 
 @pytest.mark.asyncio
@@ -171,7 +171,7 @@ async def test_m3u8_downloader(mocker: MockFixture, mock_http, my_fs):
     downloader = M3U8Downloader(root)
     await downloader.download(page)
 
-    assert re.search(r'000\.ts', read_file('%s/%s/%s.mp4' % (root, page.name, str(page.no).zfill(3))).decode('utf-8'))
+    assert re.search(r'000\.ts', read_file('%s/%s/%s.mp4' % (root, page.name, str(page.episode).zfill(3))).decode('utf-8'))
 
 
 @pytest.mark.asyncio

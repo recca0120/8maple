@@ -32,11 +32,11 @@ class Crawler:
                     yield Page(name, no, url, await self.__get_m3u8(url))
 
     @staticmethod
-    def allowed(no: Union[float, str], start, end):
-        if start is not None and start > no:
+    def allowed(episode: float, start, end):
+        if start is not None and start > episode:
             return False
 
-        if end is not None and end < no:
+        if end is not None and end < episode:
             return False
 
         return True
@@ -48,16 +48,16 @@ class Crawler:
 
 
 class Page:
-    def __init__(self, name, no: Union[float, str], url: str, m3u8_url: str):
+    def __init__(self, name, episode: Union[float, str], url: str, m3u8_url: str):
         self.name = name
-        self.no = self.parse_no(no)
+        self.episode = self.parse_episode(episode)
         self.url = url
         self.m3u8 = m3u8_url
 
     @staticmethod
-    def parse_no(no: Union[float, str]) -> Union[float, str]:
+    def parse_episode(episode: Union[float, str]) -> Union[float, str]:
         try:
-            no = int(no)
-            return '%03d' % no
+            episode = int(episode)
+            return '%03d' % episode
         except ValueError:
-            return no
+            return episode

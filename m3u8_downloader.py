@@ -75,8 +75,8 @@ class M3U8Downloader:
 
     async def download(self, page: Page):
         directory = self.__get_directory(page)
-        temp = os.path.join(os.path.dirname(directory), page.no + '.tmp.mp4')
-        target = os.path.join(os.path.dirname(directory), page.no + '.mp4')
+        temp = os.path.join(os.path.dirname(directory), page.episode + '.tmp.mp4')
+        target = os.path.join(os.path.dirname(directory), page.episode + '.mp4')
 
         if os.path.exists(target):
             self.__logger.success(f'merged: {target}')
@@ -161,7 +161,7 @@ class M3U8Downloader:
         if os.path.exists(root) is False:
             os.mkdir(root)
 
-        directory = os.path.join(root, page.no)
+        directory = os.path.join(root, page.episode)
         if os.path.exists(directory) is False:
             os.mkdir(directory)
 
