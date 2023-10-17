@@ -42,6 +42,9 @@ def get_fixture(url: str):
     if 'bowang' in url:
         directory = 'bowang'
 
+    if 'gimy.im' in url:
+        directory = 'gimy'
+
     if 'ffzy-online2' in url:
         directory = 'ffzy-online2'
 
@@ -58,6 +61,9 @@ def get_fixture(url: str):
 
     if directory == 'bowang' and file.find('126771-') != -1:
         return read_file(os.path.join('fixtures', directory, '126771-4-1.html'))
+
+    if directory == 'gimy' and file.find('16447-8') != -1:
+        return read_file(os.path.join('fixtures', directory, '16447-8-1.html'))
 
     if directory == 'ffzy-online2' and file == 'mixed.m3u8':
         return """#EXTM3U
@@ -129,7 +135,7 @@ def mocked_m3u8(*args, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_crawler(mock_http):
+async def test_bowang_crawler(mock_http):
     name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
@@ -147,15 +153,47 @@ async def test_crawler(mock_http):
 
 
 @pytest.mark.asyncio
-async def test_crawler_episode_hd(mock_http):
+async def test_bowang_crawler_episode_hd(mock_http):
     name = "銀魂劇場版：新譯紅櫻篇HD"
     url = 'https://bowang.su/play/78405-5-1.html'
+
+    factory = Factory(mock_http)
+    crawler = factory.create(url)
+    pages = [page async for page in (crawler.pages(name, url))]
+
+    assert pages[0].episode == 'HD中字'
+
+
+@pytest.mark.asyncio
+async def test_bowang_crawler_episode_1_dot_5(mock_http):
+    name = "銀魂劇場版：新譯紅櫻篇HD"
+    url = 'https://bowang.su/play/78405-5-1.5.html'
+
+    factory = Factory(mock_http)
+    crawler = factory.create(url)
+    pages = [page async for page in (crawler.pages(name, url))]
+
+    assert pages[0].episode == '1.5'
+
+
+@pytest.mark.asyncio
+async def test_gimy_crawler(mock_http):
+    name = "魔神英雄傳"
+    url = 'https://gimy.im/play/16447-8-1.html'
 
     factory = Factory()
     crawler = factory.create(url)
     pages = [page async for page in (crawler.pages(name, url))]
 
-    assert pages[0].episode == 'HD中字'
+    assert 47 == len(pages)
+
+    page = pages[0]
+    assert name == page.name
+    assert '001' == page.episode
+    assert 'https://gimy.im/play/16447-8-1.html' == page.url
+    assert 'https://ikcdn01.ikzybf.com/20221102/ljkYG2cC/index.m3u8' == page.m3u8
+    page = pages[-1]
+    assert 'OVA02' == page.episode
 
 
 @pytest.mark.asyncio

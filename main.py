@@ -1,3 +1,4 @@
+import asyncio
 from typing import Union
 
 from client import Http
@@ -39,6 +40,7 @@ if __name__ == '__main__':
     # asyncio.run(main('七龍珠GT (1996)', 'https://bowang.su/play/15450-6-1.html'))
     # asyncio.run(main('九龍珠 (1993)', 'https://bowang.su/play/103058-5-1.html'))
     # asyncio.run(main('城市獵人 (1987)', 'https://bowang.su/play/10496-3-1.html'))
+    # asyncio.run(main('城市獵人 (1987)', 'https://bowang.su/play/10496-2-1.html'))
     # asyncio.run(main('烏龍派出所', 'https://bowang.su/play/77596-2-1.html'))
     # asyncio.run(main('少年駭客：外星勢力第一季', 'https://bowang.su/play/160840-1-1.html'))
     # asyncio.run(main('少年駭客：外星勢力第二季', 'https://bowang.su/play/110789-6-1.html'))
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     # asyncio.run(main('銀魂劇場版：新譯紅櫻篇', 'https://bowang.su/play/78405-5-1.html'))
     # asyncio.run(main('銀魂：最終篇', 'https://bowang.su/play/64374-9-1.html'))
     # asyncio.run(main('舞動青春', 'https://bowang.su/play/33280-8-1.html'))
-    # asyncio.run(main('魔神英雄傳', 'https://bowang.su/play/77535-4-1.html'))
+    asyncio.run(main('魔神英雄傳', 'https://gimy.im/play/66819-1-1.html'))
     # asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-5-1.html'))
     # asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-3-15.html', 15, 15))
     # asyncio.run(main('超魔神英雄傳', 'https://bowang.su/play/103759-2-1.html'))
