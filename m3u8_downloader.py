@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import m3u8
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
-from m3u8 import Segment
+from m3u8 import Segment, Playlist
 from requests import HTTPError
 
 from client import Http
@@ -152,7 +152,7 @@ class M3U8Downloader:
                 return parsed
 
             playlist = parsed.playlists[0]
-            url = self.__get_m3u8_url(playlist.base_uri, playlist.uri)
+            url = self.__get_m3u8_url(playlist)
 
     def __get_directory(self, page: Page):
         if os.path.exists(self.__root) is False:
@@ -185,7 +185,10 @@ class M3U8Downloader:
         return sorted(glob.glob(os.path.join(directory, '*.ts')))
 
     @staticmethod
-    def __get_m3u8_url(base_uri, uri):
+    def __get_m3u8_url(playlist: Playlist):
+        base_uri = playlist.base_uri
+        uri = playlist.uri
+
         if uri[0] != '/':
             return f'{base_uri}/{uri}'
 
