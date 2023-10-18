@@ -50,10 +50,11 @@ if __name__ == '__main__':
     # asyncio.run(main('銀魂劇場版：新譯紅櫻篇', 'https://bowang.su/play/78405-5-1.html'))
     # asyncio.run(main('銀魂：最終篇', 'https://bowang.su/play/64374-9-1.html'))
     # asyncio.run(main('舞動青春', 'https://bowang.su/play/33280-8-1.html'))
-    asyncio.run(main('魔神英雄傳', 'https://gimy.im/play/66819-1-1.html'))
+    # asyncio.run(main('魔神英雄傳', 'https://gimy.im/play/66819-1-1.html'))
     # asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-5-1.html'))
     # asyncio.run(main('魔神英雄傳2', 'https://bowang.su/play/77539-3-15.html', 15, 15))
     # asyncio.run(main('超魔神英雄傳', 'https://bowang.su/play/103759-2-1.html'))
     # asyncio.run(main('魔神英雄傳 七魂龍神丸', 'https://bowang.su/play/76760-11-1.html'))
     # asyncio.run(main('魔神英雄傳 七魂龍神丸-再會', 'https://bowang.su/play/128262-2-1.html'))
+    asyncio.run(main('俺物語', 'https://bowang.su/play/57874-3-1.html'))
     pass

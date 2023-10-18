@@ -2,6 +2,7 @@ import asyncio
 import glob
 import os
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 import m3u8
 from Cryptodome.Cipher import AES
@@ -185,14 +186,12 @@ class M3U8Downloader:
 
     @staticmethod
     def __get_m3u8_url(base_uri, uri):
-        segments = uri.split('/')
-        segments.reverse()
-        positions = map(lambda segment: base_uri.rfind(segment), segments)
-        positions = filter(lambda _pos: _pos != -1, positions)
-        for pos in positions:
-            base_uri = base_uri[0:pos]
+        if uri[0] != '/':
+            return f'{base_uri}/{uri}'
 
-        return base_uri.rstrip('/') + '/' + uri.lstrip('/')
+        parsed = urlparse(base_uri)
+
+        return f'{parsed.scheme}://{parsed.netloc}{uri}'
 
 
 async def main(page: Page):
