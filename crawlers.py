@@ -88,16 +88,11 @@ class Page:
 
 
 class Factory(object):
-    crawlers = {
-        'bowang': Bowang,
-        'gimy': Gimy
-    }
-
     def __init__(self, http: Http = None):
         self.__http = Http() if http is None else http
 
     def create(self, url: str):
-        return self.crawlers.get(self.parse_name(url))(self.__http)
+        return eval(self.parse_name(url).capitalize())(self.__http)
 
     @staticmethod
     def parse_name(url: str):
