@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 
 import m3u8
 import pytest
-import requests
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
@@ -289,8 +288,8 @@ def test_request():
     #     'Accept-Encoding': 'gzip',
     # })
     # print(response.content.decode('utf-8'))
-    url = 'https://static1.keepcdn.com/avatar/2023/06/06/03/58/1f971a7f979e1b32ae662bf0e494423e.png'
-    print(requests.get(url).content)
+    # url = 'https://static1.keepcdn.com/avatar/2023/06/06/03/58/1f971a7f979e1b32ae662bf0e494423e.png'
+    # print(requests.get(url).content)
     pass
 
 
