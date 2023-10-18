@@ -2,7 +2,7 @@ import glob
 import io
 import os
 import re
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import m3u8
 import pytest
@@ -11,6 +11,7 @@ from Cryptodome.Util.Padding import pad
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pytest_mock import MockFixture
 
+from client import Http
 from crawlers import Page, Factory
 from m3u8_downloader import M3U8Downloader
 from main import Downloader
@@ -50,6 +51,9 @@ def get_fixture(url: str):
     if 'yle888' in url:
         directory = 'yle888'
 
+    if 'szjal' in url:
+        directory = 'szjal'
+
     if re.search(r'\.ts$', url) is not None:
         content = (url + "\n").encode('utf-8')
         if directory in ['yle888']:
@@ -60,6 +64,9 @@ def get_fixture(url: str):
 
     if directory == 'bowang' and file.find('126771-') != -1:
         return read_file(os.path.join('fixtures', directory, '126771-4-1.html'))
+
+    if directory == 'bowang' and file.find('57874-') != -1:
+        return read_file(os.path.join('fixtures', directory, '57874-3-1.html'))
 
     if directory == 'gimy' and file.find('16447-8') != -1:
         return read_file(os.path.join('fixtures', directory, '16447-8-1.html'))
@@ -76,7 +83,7 @@ def get_fixture(url: str):
             """.encode('utf-8')
 
     if directory == 'yle888' and 'hls/index.m3u8' in url:
-        return """ #EXTM3U
+        return """#EXTM3U
             #EXT-X-VERSION:3
             #EXT-X-TARGETDURATION:7
             #EXT-X-PLAYLIST-TYPE:VOD
@@ -87,6 +94,23 @@ def get_fixture(url: str):
             #EXTINF:3.127,
             /20221207/Gqk5BD7f/1500kb/hls/Q0HXvpgA.ts 
             """.encode('utf-8')
+
+    if directory == 'szjal' and 'index.m3u8' in url:
+        return """#EXTM3U
+            #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1000000,RESOLUTION=1080x606
+            /ppvod/B2730CCCD100BD33DB10092BFB3C683C.m3u8
+        """.encode('utf-8')
+
+    if directory == 'szjal' and 'B2730CCCD100BD33DB10092BFB3C683C.m3u8' in url:
+        return """#EXTM3U
+        #EXT-X-VERSION:3
+        #EXT-X-TARGETDURATION:11
+        #EXT-X-MEDIA-SEQUENCE:0
+        #EXTINF:10.428,
+        https://e1.monidai.com/20210804/sOx793Ta/1000kb/hls/4AWD1318000.ts
+        #EXTINF:7.675,
+        https://e1.monidai.com/20210804/sOx793Ta/1000kb/hls/4AWD1318001.ts
+        """.encode('utf-8')
 
     file = os.path.join('fixtures', directory, file)
     if os.path.exists(file):
@@ -134,11 +158,11 @@ def mocked_m3u8(*args, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_bowang_crawler(mock_http):
+async def test_bowang_crawler(mock_http: Http):
     name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
-    factory = Factory()
+    factory = Factory(mock_http)
     crawler = factory.create(url)
     pages = [page async for page in (crawler.pages(name, url))]
 
@@ -152,7 +176,7 @@ async def test_bowang_crawler(mock_http):
 
 
 @pytest.mark.asyncio
-async def test_bowang_crawler_episode_hd(mock_http):
+async def test_bowang_crawler_episode_hd(mock_http: Http):
     name = "銀魂劇場版：新譯紅櫻篇HD"
     url = 'https://bowang.su/play/78405-5-1.html'
 
@@ -164,7 +188,7 @@ async def test_bowang_crawler_episode_hd(mock_http):
 
 
 @pytest.mark.asyncio
-async def test_bowang_crawler_episode_1_dot_5(mock_http):
+async def test_bowang_crawler_episode_1_dot_5(mock_http: Http):
     name = "銀魂劇場版：新譯紅櫻篇HD"
     url = 'https://bowang.su/play/78405-5-1.5.html'
 
@@ -176,11 +200,11 @@ async def test_bowang_crawler_episode_1_dot_5(mock_http):
 
 
 @pytest.mark.asyncio
-async def test_gimy_crawler(mock_http):
+async def test_gimy_crawler(mock_http: Http):
     name = "魔神英雄傳"
     url = 'https://gimy.im/play/16447-8-1.html'
 
-    factory = Factory()
+    factory = Factory(mock_http)
     crawler = factory.create(url)
     pages = [page async for page in (crawler.pages(name, url))]
 
@@ -196,7 +220,7 @@ async def test_gimy_crawler(mock_http):
 
 
 @pytest.mark.asyncio
-async def test_m3u8_downloader(mocker: MockFixture, mock_http, my_fs):
+async def test_m3u8_downloader(mocker: MockFixture, mock_http: Http, my_fs):
     mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
@@ -207,7 +231,7 @@ async def test_m3u8_downloader(mocker: MockFixture, mock_http, my_fs):
 
     page = Page(name, episode, url, m3u8_)
 
-    downloader = M3U8Downloader(root)
+    downloader = M3U8Downloader(root, mock_http)
     await downloader.download(page)
 
     assert re.search(r'000\.ts',
@@ -215,7 +239,7 @@ async def test_m3u8_downloader(mocker: MockFixture, mock_http, my_fs):
 
 
 @pytest.mark.asyncio
-async def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, mock_http, my_fs):
+async def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, mock_http: Http, my_fs):
     mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
@@ -225,19 +249,37 @@ async def test_m3u8_downloader_and_decrypt_content(mocker: MockFixture, mock_htt
     m3u8_ = 'https://new.yle888.vip/20221207/Gqk5BD7f/index.m3u8'
 
     page = Page(name, episode, url, m3u8_)
-    downloader = M3U8Downloader(root)
+    downloader = M3U8Downloader(root, mock_http)
     await downloader.download(page)
 
 
 @pytest.mark.asyncio
-async def test_downloader(mocker: MockFixture, mock_http, my_fs):
+async def test_m3u8_downloader_relative_path(mocker: MockFixture, mock_http: Http, my_fs):
+    mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
+
+    root = 'video-test'
+    name = "俺物語"
+    episode = 1
+    url = 'https://bowang.su/play/57874-3-1.html'
+    m3u8_ = 'https://n1.szjal.cn/20210804/sOx793Ta/index.m3u8'
+
+    page = Page(name, episode, url, m3u8_)
+    with patch.object(Http, 'get', wraps=mock_http.get) as mock:
+        downloader = M3U8Downloader(root, mock_http)
+        await downloader.download(page)
+
+        assert mock.call_args_list[1].args[0] == 'https://n1.szjal.cn/ppvod/B2730CCCD100BD33DB10092BFB3C683C.m3u8'
+
+
+@pytest.mark.asyncio
+async def test_downloader(mocker: MockFixture, mock_http: Http, my_fs):
     mocker.patch('videoprops.get_video_properties', return_value={'height': '960', 'width': '480'})
 
     root = 'video-test'
     name = "DB"
     url = 'https://bowang.su/play/126771-4-1.html'
 
-    downloader = Downloader(Factory(), M3U8Downloader(root))
+    downloader = Downloader(Factory(mock_http), M3U8Downloader(root, mock_http))
     await downloader.download(name, url)
 
     assert 153 == len(glob.glob(os.path.join(root, name, '*.mp4')))
@@ -298,6 +340,9 @@ def mock_http(mocker: MockFixture):
     mocker.patch('aiohttp.ClientSession.get', side_effect=mock_response)
     mocker.patch('aiohttp.ClientSession.head', side_effect=mock_response)
     mocker.patch('m3u8.load', side_effect=mocked_m3u8)
+
+    http = Http()
+    yield http
 
 
 @pytest.fixture
