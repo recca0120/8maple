@@ -56,5 +56,5 @@ if __name__ == '__main__':
     # asyncio.run(main('超魔神英雄傳', 'https://bowang.su/play/103759-2-1.html'))
     # asyncio.run(main('魔神英雄傳 七魂龍神丸', 'https://bowang.su/play/76760-11-1.html'))
     # asyncio.run(main('魔神英雄傳 七魂龍神丸-再會', 'https://bowang.su/play/128262-2-1.html'))
-    asyncio.run(main('俺物語', 'https://bowang.su/play/57874-3-1.html'))
-    pass
+    # asyncio.run(main('俺物語', 'https://pttplay.co/play/30132-11-1.html'))
+    asyncio.run(main('蠟筆小新：新次元！超能力大決戰(日語)', 'https://gimy.ai/eps/251174-7-1.html'))

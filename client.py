@@ -8,7 +8,8 @@ class Http:
     }
 
     async def get(self, url: str) -> bytes:
-        async with aiohttp.ClientSession() as session:
+        conn = aiohttp.TCPConnector(limit_per_host=1)
+        async with aiohttp.ClientSession(connector=conn, trust_env=True) as session:
             async with session.get(url, headers=self.headers) as response:
                 response.raise_for_status()
 

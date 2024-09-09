@@ -99,5 +99,7 @@ class Factory(object):
         domain = urlparse(url).netloc
         if 'gimy' in domain:
             return 'gimy'
+        if 'pttplay' in domain:
+            return 'gimy'
 
         return 'bowang'
