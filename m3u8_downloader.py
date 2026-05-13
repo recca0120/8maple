@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import glob
 import os
@@ -7,7 +9,7 @@ from urllib.parse import urlparse
 import m3u8
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import unpad
-from m3u8 import Segment, Playlist
+from m3u8 import Segment, Playlist, Key
 from requests import HTTPError
 
 from client import Http
@@ -137,9 +139,16 @@ class M3U8Downloader:
         if encryption is None:
             return None
 
-        response = await self.__http.get(encryption.absolute_uri)
+        aes_key = await self.__http.get(encryption.absolute_uri)
+        aes_iv = await self.get_aes_iv(encryption)
 
-        return AES.new(response, AES.MODE_CBC, encryption.iv)
+        return AES.new(aes_key, AES.MODE_CBC, aes_iv)
+
+    @staticmethod
+    async def get_aes_iv(encryption: Key) -> bytes|None:
+        if encryption.iv is None:
+            return None
+        return bytes.fromhex(encryption.iv.replace("0x", ""))
 
     async def __get_playlist(self, page: Page):
         url = page.m3u8
@@ -155,15 +164,15 @@ class M3U8Downloader:
             url = self.__get_m3u8_url(playlist)
 
     def __get_directory(self, page: Page):
-        if os.path.exists(self.__root) is False:
+        if not os.path.exists(self.__root):
             os.mkdir(self.__root)
 
         root = os.path.join(self.__root, page.name)
-        if os.path.exists(root) is False:
+        if not os.path.exists(root):
             os.mkdir(root)
 
         directory = os.path.join(root, page.episode)
-        if os.path.exists(directory) is False:
+        if not os.path.exists(directory):
             os.mkdir(directory)
 
         return directory

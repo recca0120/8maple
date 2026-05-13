@@ -53,7 +53,7 @@ class Crawler(ABC):
 
     @staticmethod
     def __get_m3u8(html: str) -> str:
-        url = re.search(r'\"https:.+?\.m3u8\"', html).group(0)
+        url = re.search(r'\"https:[^:]+?\.m3u8\"', html).group(0)
 
         return json.loads('{"url": %s}' % url)['url']
 
